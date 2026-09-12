@@ -21,10 +21,14 @@ from app.config.settings import Config
 logger = logging.getLogger(__name__)
 
 
+# ── Base ────────────────────────────────────────────────────
+
 class Base(DeclarativeBase):
     """Declarative base for all ORM models."""
     pass
 
+
+# ── Engine & Session Factory ────────────────────────────────
 
 _engine = None
 _SessionFactory = None
@@ -41,6 +45,8 @@ def initialize_database() -> None:
     """Create engine, session factory, and tables."""
     global _engine, _SessionFactory
 
+    # Tests and restore operations may initialize the database more than once.
+    # Close the previous pool before replacing its global reference.
     if _engine is not None:
         _engine.dispose()
         _engine = None
@@ -54,6 +60,7 @@ def initialize_database() -> None:
         pool_pre_ping=True,
     )
 
+    # Enable WAL mode and foreign keys for every connection
     @event.listens_for(_engine, "connect")
     def _set_sqlite_pragma(dbapi_conn, _connection_record):
         cursor = dbapi_conn.cursor()
@@ -63,6 +70,8 @@ def initialize_database() -> None:
         cursor.close()
 
     _SessionFactory = sessionmaker(bind=_engine, expire_on_commit=False)
+
+    # Create tables
     Base.metadata.create_all(_engine)
     logger.info("Database initialized: %s", url)
 
