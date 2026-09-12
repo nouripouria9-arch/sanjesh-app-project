@@ -49,6 +49,8 @@ class Config:
             cls._instance._load()
         return cls._instance
 
+    # ── Load / Save ─────────────────────────────────────────
+
     def _load(self) -> None:
         if _CONFIG_PATH.exists():
             try:
@@ -58,6 +60,7 @@ class Config:
             except (json.JSONDecodeError, OSError) as exc:
                 logger.warning("Failed to load config: %s — using defaults", exc)
                 self._data = {}
+        # Apply defaults for missing keys
         for key, default in DEFAULT_SETTINGS.items():
             if key not in self._data:
                 self._data[key] = default
@@ -71,6 +74,8 @@ class Config:
                 json.dump(self._data, fh, ensure_ascii=False, indent=2)
         except OSError as exc:
             logger.error("Failed to save config: %s", exc)
+
+    # ── Accessors ────────────────────────────────────────────
 
     def get(self, key: str, default: Any = None) -> Any:
         return self._data.get(key, default)
@@ -87,6 +92,8 @@ class Config:
 
     def get_str(self, key: str, default: str = "") -> str:
         return str(self._data.get(key, default))
+
+    # ── Convenience ──────────────────────────────────────────
 
     @property
     def theme(self) -> str:
