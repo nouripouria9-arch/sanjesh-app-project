@@ -67,6 +67,8 @@ class ScoreAnalytics:
 class AnalyticsService:
     """Professional statistical analysis using real data."""
 
+    # ── Basic Statistics Calculator ──────────────────────────
+
     @staticmethod
     def calc_basic_stats(values: list[float]) -> BasicStats:
         """Compute descriptive statistics for a numeric list."""
@@ -83,6 +85,7 @@ class AnalyticsService:
         if len(values) >= 2:
             s.std_dev = round(stats_mod.stdev(values), 2)
             s.variance = round(stats_mod.variance(values), 2)
+        # Quartiles
         sorted_v = sorted(values)
         n = len(sorted_v)
         q1_idx = n // 4
@@ -91,6 +94,8 @@ class AnalyticsService:
         s.q3 = round(sorted_v[min(q3_idx, n - 1)], 2)
         s.iqr = round(s.q3 - s.q1, 2)
         return s
+
+    # ── Candidate Analytics ──────────────────────────────────
 
     @staticmethod
     def get_candidate_analytics() -> CandidateAnalytics:
@@ -106,12 +111,15 @@ class AnalyticsService:
         analytics.total_male = analytics.gender_distribution.get("مرد", 0)
         analytics.total_female = analytics.gender_distribution.get("زن", 0)
         analytics.total_with_previous = analytics.previous_exam_distribution.get("بله", 0)
+        # Age stats from all candidates
         candidates = CandidateRepository.get_all()
         if candidates:
             ages = [float(c.age) for c in candidates]
             analytics.avg_age = round(stats_mod.mean(ages), 1)
             analytics.age_stats = AnalyticsService.calc_basic_stats(ages)
         return analytics
+
+    # ── Score Analytics ──────────────────────────────────────
 
     @staticmethod
     def get_score_analytics(exam_year: int | None = None) -> ScoreAnalytics:
@@ -129,6 +137,7 @@ class AnalyticsService:
             else ScoreRepository.average_by_subject()
         )
 
+        # Gather all individual percent scores for overall stats
         with get_session() as session:
             stmt = select(Score.percent)
             if exam_year:
@@ -152,6 +161,7 @@ class AnalyticsService:
             sa.overall_min = overall.minimum
             sa.overall_max = overall.maximum
 
+        # Per-subject detailed stats
         with get_session() as session:
             stmt = select(Score.subject, Score.percent)
             if exam_year:
@@ -164,6 +174,7 @@ class AnalyticsService:
             for subject, scores_list in subject_scores.items():
                 sa.subject_stats[subject] = AnalyticsService.calc_basic_stats(scores_list)
 
+        # Score distribution buckets: 0-20, 20-40, 40-60, 60-80, 80-100
         buckets = {"0-20": 0, "20-40": 0, "40-60": 0, "60-80": 0, "80-100": 0}
         for p in all_percents:
             if p < 20:
@@ -179,6 +190,8 @@ class AnalyticsService:
         sa.score_distribution = buckets
 
         return sa
+
+    # ── Subject Performance Comparison ───────────────────────
 
     @staticmethod
     def get_subject_comparison() -> dict[str, dict[str, float]]:
@@ -204,6 +217,8 @@ class AnalyticsService:
             }
         return result
 
+    # ── Year-over-Year Comparison ────────────────────────────
+
     @staticmethod
     def get_year_comparison() -> dict[int, dict[str, Any]]:
         """Compare metrics across exam years."""
@@ -226,6 +241,7 @@ class AnalyticsService:
                         Candidate.exam_year == year, Candidate.gender == "مرد"
                     )
                 ).scalar_one()
+                # Score averages for this year
                 score_avgs = {}
                 for subject, avg in session.execute(
                     select(Score.subject, func.avg(Score.percent))
